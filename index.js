@@ -19,7 +19,7 @@ client.on('interactionCreate', async interaction => {
         if (commandName === 'ping') {
             await interaction.reply('Pong!');
         } else if (commandName === 'pong') {
-            await interaction.reply('Segmentation Fault (Core Dumped!)');
+            await interaction.reply('Segmentation Fault (Core Dumped?)');
         }
     }
 });
