@@ -51,7 +51,7 @@ client.on('interactionCreate', async interaction => {
                 console.log("Audio Playing");
             });
 
-            const resource = createAudiResource(join(__dirname, 'test.mp3'), { inlineVolume: true });
+            const resource = createAudioResource(join(__dirname, 'test.mp3'), { inlineVolume: true });
 
             let connection = await joinVoiceChannel({
                 channelId: voiceChannelId,
