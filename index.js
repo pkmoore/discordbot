@@ -1,80 +1,107 @@
-const { Client, GatewayIntentBits } = require('discord.js');
-const { token, targetChannel, voiceChannelId, guildId } = require('./config.json');
+const { Client, GatewayIntentBits } = require("discord.js");
+const {
+  token,
+  targetChannel,
+  voiceChannelId,
+  guildId,
+} = require("./config.json");
 
-const { createReadStream } = require('node:fs');
-const { join } = require('node:path');
+const fs = require("node:fs");
+const path = require("node:path");
 
-const { joinVoiceChannel, createAudioPlayer, createAudioResource, NoSubscriberBehavior, VoiceConnectionStatus, AudioPlayerStatus } = require('@discordjs/voice');
+const {
+  joinVoiceChannel,
+  createAudioPlayer,
+  createAudioResource,
+  NoSubscriberBehavior,
+  VoiceConnectionStatus,
+  AudioPlayerStatus,
+} = require("@discordjs/voice");
+
+
+const espeak = require('./espeaktts.js');
 
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.GuildVoiceStates,
-  ]
+  ],
 });
 
 // Login to Discord with your client's token
 client.login(token);
 
-client.once('ready', () => {
-    console.log('Ready!');
+client.once("ready", () => {
+  console.log("Ready!");
 });
 
-client.on('interactionCreate', async interaction => {
-    if (!interaction.isChatInputCommand()) return;
+client.on("interactionCreate", async (interaction) => {
+  if (!interaction.isChatInputCommand()) return;
 
-    const { commandName, channelId } = interaction;
+  const { commandName, channelId } = interaction;
 
-    if (channelId === targetChannel) {
-        if (commandName === 'ping') {
-            await interaction.reply('Pong!');
-        } else if (commandName === 'pong') {
-            await interaction.reply('Segmentation Fault (Core Dumped?)');
-        } else if (commandName === 'boop') {
-            
-            const guild = client.guilds.cache.get(guildId);
+  if (channelId === targetChannel) {
+    if (commandName === "ping") {
+      await interaction.reply("Pong!");
+    } else if (commandName === "pong") {
+      await interaction.reply("Segmentation Fault (Core Dumped?)");
+    } else if (commandName === "boop") {
+      const guild = client.guilds.cache.get(guildId);
 
-            let player = createAudioPlayer({
-              behaviors: {
-                noSubscriber: NoSubscriberBehavior.Pause,
-              },
-            });
+      const inFilePath = espeak.speakToFile('Hello Collin');
 
-            player.on(AudioPlayerStatus.Idle, (oldState, newState) => {
-                console.log("Audio completed playing")
-                subscription.unsubscribe();
-                connection.destroy();
-            });
+      let player = createAudioPlayer({
+        behaviors: {
+          noSubscriber: NoSubscriberBehavior.Pause,
+        },
+      });
 
-            player.on(AudioPlayerStatus.Playing, (oldState, newState) => {
-                console.log("Audio Playing");
-            });
+      player.on(AudioPlayerStatus.Idle, (oldState, newState) => {
+        console.log("Audio completed playing");
+        subscription.unsubscribe();
+        connection.destroy();
+        fs.unlink(path.format(inFilePath), (err) => {
+            if (err) {
+                throw err
+            } else {
+                console.log(`Unlinked ${path.format(inFilePath)}`);
+            }
+        });
+      });
 
-            const resource = createAudioResource(join(__dirname, 'test.mp3'), { inlineVolume: true });
+      player.on(AudioPlayerStatus.Playing, (oldState, newState) => {
+        console.log("Audio Playing");
+      });
 
-            let connection = await joinVoiceChannel({
-                channelId: voiceChannelId,
-                guildId: guildId,
-                adapterCreator: guild.voiceAdapterCreator,
-            });
+      const resource = createAudioResource(path.join(__dirname, path.format(inFilePath)), {
+        inlineVolume: true,
+      });
 
-            connection.on(VoiceConnectionStatus.Destroyed, (oldState, newState) => {
-                console.log("Voice connection destroyed");
-            });
+      let connection = joinVoiceChannel({
+        channelId: voiceChannelId,
+        guildId: guildId,
+        adapterCreator: guild.voiceAdapterCreator,
+      });
 
-            connection.on(VoiceConnectionStatus.Disconnected, (oldState, newState) => {
-                console.log("Voice connection destroyed");
-            });
+      connection.on(VoiceConnectionStatus.Destroyed, (oldState, newState) => {
+        console.log("Voice connection destroyed");
+      });
 
-            connection.on(VoiceConnectionStatus.Ready, (oldState, newState) => {
-                console.log("Voice Connection Ready!");
-                player.play(resource);
-                subscription = connection.subscribe(player);
-            });
-
-            //await interaction.reply('Booped Mark\'s Cabin');
+      connection.on(
+        VoiceConnectionStatus.Disconnected,
+        (oldState, newState) => {
+          console.log("Voice connection destroyed");
         }
-    }
-});
+      );
 
+      connection.on(VoiceConnectionStatus.Ready, (oldState, newState) => {
+        console.log("Voice Connection Ready!");
+        player.play(resource);
+        subscription = connection.subscribe(player);
+      });
+
+      await interaction.reply('Message sent');
+    }
+  }
+});

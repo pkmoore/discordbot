@@ -1,18 +1,25 @@
 const espeak = require('espeak');
 const fs = require('fs');
+const path = require('node:path');
 
 function speakToFile(msg) {
-  espeak.speak('hello world', (err, wav ) => {
+  msg = msg.replace(/[^a-zA-Z0-9]/, "");
+  outPath = path.parse('./tmp.wav');
+  espeak.speak(msg, (err, wav ) => {
     if(err) {
-      return console.error(err);
+      throw err;
     } else {
       const data = wav.buffer;
-      fs.writeFile('./tmp.wav', data, (err) => {
-        return console.error(err);
+      fs.writeFile(path.format(outPath), data, (err) => {
+        if(err) {
+          throw err;
+        } else {
+          console.log(`Wrote tts audio to ${path.format(outPath)}`);
+        }
       });
     }
   });
-  return 'tmp.wav';
+  return outPath;
 }
 
-module.exports = speakToFile;
+module.exports.speakToFile = speakToFile;
