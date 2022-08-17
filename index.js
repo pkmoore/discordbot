@@ -6,7 +6,7 @@ const {
   guildId,
 } = require("./config.json");
 
-const fs = require("node:fs");
+const fsPromise = require("fs/promises");
 const path = require("node:path");
 
 const {
@@ -26,6 +26,8 @@ const client = new Client({
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.GuildVoiceStates,
+    GatewayIntentBits.GuildPresences,
+    GatewayIntentBits.GuildMembers
   ],
 });
 
@@ -33,7 +35,7 @@ const client = new Client({
 client.login(token);
 
 client.once("ready", () => {
-  console.log("Ready!");
+  console.log("Ready!"); 
 });
 
 client.on("interactionCreate", async (interaction) => {
@@ -47,61 +49,79 @@ client.on("interactionCreate", async (interaction) => {
     } else if (commandName === "pong") {
       await interaction.reply("Segmentation Fault (Core Dumped?)");
     } else if (commandName === "boop") {
-      const guild = client.guilds.cache.get(guildId);
 
-      const inFilePath = espeak.speakToFile('Hello Collin');
+      await voiceTTSToChannelId("Fucking promises how do they work", "391598293672656896", client);
+      // 108255954268614656 is Collin
+    
+      //findChannelWithMemberId("108255954268614660", client);
+      await interaction.reply("Worked");
 
-      let player = createAudioPlayer({
-        behaviors: {
-          noSubscriber: NoSubscriberBehavior.Pause,
-        },
-      });
-
-      player.on(AudioPlayerStatus.Idle, (oldState, newState) => {
-        console.log("Audio completed playing");
-        subscription.unsubscribe();
-        connection.destroy();
-        fs.unlink(path.format(inFilePath), (err) => {
-            if (err) {
-                throw err
-            } else {
-                console.log(`Unlinked ${path.format(inFilePath)}`);
-            }
-        });
-      });
-
-      player.on(AudioPlayerStatus.Playing, (oldState, newState) => {
-        console.log("Audio Playing");
-      });
-
-      const resource = createAudioResource(path.join(__dirname, path.format(inFilePath)), {
-        inlineVolume: true,
-      });
-
-      let connection = joinVoiceChannel({
-        channelId: voiceChannelId,
-        guildId: guildId,
-        adapterCreator: guild.voiceAdapterCreator,
-      });
-
-      connection.on(VoiceConnectionStatus.Destroyed, (oldState, newState) => {
-        console.log("Voice connection destroyed");
-      });
-
-      connection.on(
-        VoiceConnectionStatus.Disconnected,
-        (oldState, newState) => {
-          console.log("Voice connection destroyed");
-        }
-      );
-
-      connection.on(VoiceConnectionStatus.Ready, (oldState, newState) => {
-        console.log("Voice Connection Ready!");
-        player.play(resource);
-        subscription = connection.subscribe(player);
-      });
-
-      await interaction.reply('Message sent');
     }
   }
 });
+
+function findChannelWithMemberId(memberId, client) {
+   const guild = client.guilds.cache.get(guildId);
+
+  for (const [channelId, channel] of guild.channels.cache) {
+    if (channel.type === 2) {
+      console.log(channel.name);
+      console.log(channel.members);
+    }
+  }
+}
+
+
+function voiceTTSToChannelWithMember(msg, memberName, client) {
+
+}
+
+async function voiceTTSToChannelId(msg, channelId, client) {
+  let player = createAudioPlayer({
+    behaviors: {
+      noSubscriber: NoSubscriberBehavior.Pause,
+    },
+  });
+
+  player.on(AudioPlayerStatus.Idle, async (oldState, newState) => {
+    console.log("Audio completed playing");
+    await fsPromise.unlink(path.format(inFilePath));
+    subscription.unsubscribe();
+    connection.destroy();
+  });
+
+  player.on(AudioPlayerStatus.Playing, (oldState, newState) => {
+    console.log("Audio Playing");
+  });
+
+  const guild = client.guilds.cache.get(guildId);
+  const inFilePath = path.parse('./tmp.wav');
+  await espeak.speakToFile(msg, inFilePath);
+  const resource = createAudioResource(path.join(__dirname, path.format(inFilePath)), {
+    inlineVolume: true,
+  });
+
+  let connection = joinVoiceChannel({
+    channelId: channelId,
+    guildId: guildId,
+    adapterCreator: guild.voiceAdapterCreator 
+  });
+
+  connection.on(VoiceConnectionStatus.Ready, async (oldState, newState) => {
+    console.log("Voice Connection Ready!");
+    player.play(resource);
+    console.log(`Unlinked ${path.format(inFilePath)}`);
+    subscription = connection.subscribe(player);
+  });
+
+  connection.on(VoiceConnectionStatus.Destroyed, (oldState, newState) => {
+    console.log("Voice connection destroyed");
+  });
+
+  connection.on(
+    VoiceConnectionStatus.Disconnected,
+    (oldState, newState) => {
+      console.log("Voice connection destroyed");
+    }
+  );
+}
